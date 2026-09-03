@@ -1,0 +1,134 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# OS
+Thumbs.db
+.DS_Store
+*.log
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+.env.secret
+*.pem
+*.key
+credentials.json
+secrets/
+
+# LLM API Keys (CRITICAL - never commit these)
+GEMINI_API_KEY
+GOOGLE_API_KEY
+GROQ_API_KEY
+ANTHROPIC_API_KEY
+
+# Large Data Files (only small processed slices tracked)
+Comment_Generation/msg-train.jsonl  # Too large, not used anyway
+Comment_Generation/msg-valid.jsonl  # Large, original (keep processed slice only)
+Comment_Generation/msg-test.jsonl   # Large, original (keep processed slice only)
+data/raw/                            # Raw unprocessed data
+*.jsonl.bak
+*.csv.bak
+*.zip
+
+# Cache & Temp Files
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+*.cache
+.langchain_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Jupyter
+.ipynb_checkpoints
+*.ipynb_checkpoints
+
+# Redis
+dump.rdb
+appendonly.aof
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Weights, models, checkpoints (if added later)
+*.pt
+*.pth
+*.ckpt
+*.weights
+models/
+checkpoints/
+
+# Langfuse & Observability
+.langfuse_cache/
+traces/
+*.trace
+
+# Temporary files
+*.tmp
+*.temp
+*_temp
+.scratch/
+
+# MacOS
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+$RECYCLE.BIN/
+ehthumbs.db
+Desktop.ini
+
+# Project-specific
+.claude/  # Claude workspace settings (can be personal)
+*.local
+tests/fixtures/output/
+eval/results/
+runs/
