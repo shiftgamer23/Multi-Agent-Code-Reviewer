@@ -27,7 +27,7 @@ from app.agents.router import decide_which_agents
 from app.agents.security_agent import run_security_review
 from app.agents.style_agent import run_style_review
 from app.agents.test_coverage_agent import run_test_coverage_review
-from app.llm import get_llm
+from app.llm import get_llm_with_fallback
 
 
 class SupervisorState(TypedDict):
@@ -81,7 +81,7 @@ def _merge_node(state: SupervisorState) -> dict:
         "don't mention them explicitly."
     )
 
-    llm = get_llm(temperature=0.3)
+    llm = get_llm_with_fallback(temperature=0.3)
     response = llm.invoke(prompt)
     return {"final_review": extract_text(response)}
 

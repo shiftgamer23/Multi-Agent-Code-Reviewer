@@ -9,7 +9,12 @@ LLM rate limits.
 """
 from app.tools.test_detector import extract_filenames_from_diff
 
-SUPPORTED_LANGS = {"py", "js", "java", "ts"}
+# Phase 6 eval revealed the dataset spans far more languages than this set
+# originally covered (66/100 locked eval examples were being skipped
+# entirely). Expanded to match what test_detector/security_checker now
+# handle - see PHASE_6_COMPLETE.md for the full breakdown. Note '.cs' (with
+# the leading dot) is the dataset's literal lang value for C#, not a typo.
+SUPPORTED_LANGS = {"py", "js", "java", "ts", "go", "rb", ".cs", "c", "cpp", "php"}
 
 DOC_EXTENSIONS = {".md", ".rst", ".txt", ".adoc"}
 DOC_FILENAMES = {"license", "changelog", "authors", "contributing", ".gitignore"}

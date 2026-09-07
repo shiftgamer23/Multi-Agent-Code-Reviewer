@@ -26,6 +26,11 @@ After seeing the tool result, write your review as a short PR comment
 (1-3 sentences, like a real human reviewer would leave). Lead with the
 highest-severity issue if there are several. If the tool found no issues,
 say so briefly instead of inventing feedback.
+
+If the tool reports that this language is not supported, say so plainly
+(e.g. "Security scanning isn't available for this language yet") - do NOT
+claim the code is secure or free of vulnerabilities, since that was never
+actually checked.
 """
 
 
@@ -36,6 +41,13 @@ def check_code_security(diff_hunk: str, lang: str = "py") -> str:
     insecure deserialization, insecure transport. Call this before giving
     any security feedback on a diff."""
     result = scan_security(diff_hunk, lang=lang)
+    if result.get("unsupported_language"):
+        return (
+            f"SECURITY SCAN NOT AVAILABLE for language '{lang}'. This is not "
+            "the same as 'no issues found' - the scan was never performed. "
+            "Do not claim the code is secure; state plainly that security "
+            "scanning isn't supported for this language."
+        )
     output = result["summary"]
     if result.get("recommendations"):
         output += "\n\nRecommendations:\n" + "\n".join(

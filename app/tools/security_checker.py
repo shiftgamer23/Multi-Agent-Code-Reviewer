@@ -172,6 +172,9 @@ def check_security_patterns(code: str) -> List[SecurityIssue]:
     return issues
 
 
+SECURITY_SUPPORTED_LANGS = ['py', 'js', 'java', 'go', 'rb', '.cs', 'c', 'cpp', 'php']
+
+
 def scan_security(diff_hunk: str, old_file: str = '', lang: str = 'py') -> Dict:
     """
     Main entry point for security scanning.
@@ -179,7 +182,7 @@ def scan_security(diff_hunk: str, old_file: str = '', lang: str = 'py') -> Dict:
     Args:
         diff_hunk: Unified diff showing changes
         old_file: Original file content
-        lang: Language code (currently only 'py' supported)
+        lang: Language code
 
     Returns:
         Dictionary with:
@@ -187,8 +190,15 @@ def scan_security(diff_hunk: str, old_file: str = '', lang: str = 'py') -> Dict:
         - 'has_issues': Boolean
         - 'summary': Human-readable summary
         - 'recommendations': List of recommendations
+
+    Note: the patterns below are mostly generic regex over common syntax
+    (e.g. `password = "..."`, `eval(`) that isn't Python-specific, so widening
+    this allowlist (done in Phase 6) to most C-style/scripting languages is
+    reasonable even though a few patterns (pickle.loads, yaml.load) are
+    Python-only and simply won't match in other languages - that's a
+    missed detection, not a false positive, so it's a safe default.
     """
-    if lang not in ['py', 'js']:
+    if lang not in SECURITY_SUPPORTED_LANGS:
         return {
             'issues': [],
             'has_issues': False,

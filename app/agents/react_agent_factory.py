@@ -20,7 +20,7 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
-from app.llm import get_llm
+from app.llm import bind_tools_with_fallback
 
 
 class ReactAgentState(TypedDict):
@@ -59,9 +59,8 @@ def build_single_tool_agent(
     Compile a single-tool ReAct agent and return a `run(user_prompt) -> str`
     function - callers never touch the graph or message objects directly.
     """
-    llm = get_llm(temperature=temperature)
     tools = [tool_fn]
-    llm_with_tools = llm.bind_tools(tools)
+    llm_with_tools = bind_tools_with_fallback(tools, temperature=temperature)
 
     def agent_node(state: ReactAgentState) -> dict:
         response = llm_with_tools.invoke(state["messages"])

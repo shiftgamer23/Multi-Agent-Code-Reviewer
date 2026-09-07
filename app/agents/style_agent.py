@@ -28,7 +28,7 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
-from app.llm import get_llm
+from app.llm import bind_tools_with_fallback
 from app.tools.linter import check_style
 
 STYLE_AGENT_SYSTEM_PROMPT = """You are a Style Reviewer, one specialist on a code review team.
@@ -44,6 +44,11 @@ do not guess at style issues from reading the diff yourself.
 After seeing the tool result, write your review as a short PR comment
 (1-3 sentences, like a real human reviewer would leave). If the tool found
 no issues, say so briefly instead of inventing feedback.
+
+If the tool reports that this language is not supported, say so plainly
+(e.g. "Style checking isn't available for this language yet") - do NOT
+claim the code is clean, well-formatted, or free of style issues, since
+that was never actually checked.
 """
 
 
@@ -53,6 +58,13 @@ def check_code_style(diff_hunk: str, lang: str = "py") -> str:
     whitespace, blank-line conventions, missing docstrings, unused imports.
     Call this before giving any style feedback on a diff."""
     result = check_style(diff_hunk, lang=lang)
+    if result.get("unsupported_language"):
+        return (
+            f"STYLE CHECK NOT AVAILABLE for language '{lang}'. This is not "
+            "the same as 'no issues found' - the check was never performed. "
+            "Do not claim the code is stylistically clean; state plainly "
+            "that style checking isn't supported for this language."
+        )
     return result["summary"]
 
 
@@ -70,9 +82,8 @@ class StyleAgentState(TypedDict):
 
 def build_style_agent():
     """Compile the Style Agent graph. Call once, reuse the returned app."""
-    llm = get_llm(temperature=0.3)
     tools = [check_code_style]
-    llm_with_tools = llm.bind_tools(tools)
+    llm_with_tools = bind_tools_with_fallback(tools, temperature=0.3)
 
     def agent_node(state: StyleAgentState) -> dict:
         response = llm_with_tools.invoke(state["messages"])
