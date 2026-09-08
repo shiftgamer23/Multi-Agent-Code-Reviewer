@@ -56,7 +56,7 @@ def check_code_security(diff_hunk: str, lang: str = "py") -> str:
     return output
 
 
-def run_security_review(diff_hunk: str, old_file: str = "", lang: str = "py") -> str:
+def run_security_review(diff_hunk: str, old_file: str = "", lang: str = "py", session_id: str = None) -> str:
     """Run the Security Agent on one diff and return its final review comment."""
     run = build_single_tool_agent(SECURITY_AGENT_SYSTEM_PROMPT, check_code_security)
 
@@ -70,4 +70,4 @@ Original file (context, may be truncated):
 Diff:
 {diff_hunk}
 """
-    return run(user_prompt)
+    return run(user_prompt, session_id=session_id)

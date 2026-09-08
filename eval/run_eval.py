@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.agents.supervisor_graph import run_full_review
-from eval.scoring import judge_review, word_overlap_score
+from eval.scoring import judge_review, log_eval_scores, word_overlap_score
 
 EVAL_SLICE = Path(__file__).parent.parent / "data" / "processed" / "final_eval_slice.jsonl"
 RESULTS_DIR = Path(__file__).parent / "results"
@@ -105,14 +105,17 @@ def main():
         print(f"[{i}/{len(examples)}] id={ex_id} (proj={ex['proj']}, lang={ex['lang']}) - running full review...")
 
         try:
+            eval_session_id = f"eval-{ex_id}"
             final_state = run_full_review(
-                diff_hunk=ex["patch"], old_file=ex.get("oldf", ""), lang=ex["lang"]
+                diff_hunk=ex["patch"], old_file=ex.get("oldf", ""), lang=ex["lang"],
+                run_id=eval_session_id,
             )
             final_review = final_state.get("final_review") or ""
             human_comment = ex["msg"]
 
-            judge = judge_review(final_review, human_comment)
+            judge = judge_review(final_review, human_comment, session_id=eval_session_id)
             overlap = word_overlap_score(final_review, human_comment)
+            log_eval_scores(ex_id, judge["verdict"], overlap)
 
             result = {
                 "id": ex_id,

@@ -12,6 +12,7 @@ Two signals, per plan.md:
 import re
 
 from app.agents.react_agent_factory import extract_text
+from app.infra.tracing import get_langfuse_client, invoke_config
 from app.llm import get_llm_with_fallback
 
 JUDGE_PROMPT_TEMPLATE = """You are evaluating an AI-generated code review comment \
@@ -33,13 +34,13 @@ Then a one-sentence reason on the second line.
 """
 
 
-def judge_review(final_review: str, human_comment: str) -> dict:
+def judge_review(final_review: str, human_comment: str, session_id: str = None) -> dict:
     """LLM-as-judge scoring. Returns {'verdict': 'MATCH'|'PARTIAL'|'NO_MATCH', 'reason': str}."""
     llm = get_llm_with_fallback(temperature=0.0)
     prompt = JUDGE_PROMPT_TEMPLATE.format(
         human_comment=human_comment, final_review=final_review
     )
-    response = llm.invoke(prompt)
+    response = llm.invoke(prompt, config=invoke_config(session_id))
     text = extract_text(response).strip()
 
     lines = text.split("\n", 1)
@@ -69,3 +70,22 @@ def word_overlap_score(text_a: str, text_b: str) -> float:
     intersection = tokens_a & tokens_b
     union = tokens_a | tokens_b
     return len(intersection) / len(union)
+
+
+def log_eval_scores(example_id, judge_verdict: str, overlap_score: float) -> None:
+    """
+    Push one example's Phase 6 scores into Langfuse (per plan.md: "so
+    quality can be tracked over time as changes are made, not just
+    captured as a single static number"). No-op if Langfuse isn't
+    configured - eval/run_eval.py still works without it.
+    """
+    client = get_langfuse_client()
+    if client is None:
+        return
+    session_id = f"eval-{example_id}"
+    client.create_score(
+        name="judge_verdict", value=judge_verdict, session_id=session_id, data_type="CATEGORICAL"
+    )
+    client.create_score(
+        name="word_overlap", value=overlap_score, session_id=session_id, data_type="NUMERIC"
+    )

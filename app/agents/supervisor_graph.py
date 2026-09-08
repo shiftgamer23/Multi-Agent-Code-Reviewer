@@ -27,6 +27,7 @@ from app.agents.router import decide_which_agents
 from app.agents.security_agent import run_security_review
 from app.agents.style_agent import run_style_review
 from app.agents.test_coverage_agent import run_test_coverage_review
+from app.infra.tracing import invoke_config
 from app.llm import get_llm_with_fallback
 
 
@@ -38,20 +39,27 @@ class SupervisorState(TypedDict):
     security_review: Optional[str]
     test_review: Optional[str]
     final_review: Optional[str]
+    run_id: Optional[str]  # groups this run's agent traces in Langfuse (Phase 8)
 
 
 def _style_node(state: SupervisorState) -> dict:
-    review = run_style_review(state["diff_hunk"], state.get("old_file", ""), state["lang"])
+    review = run_style_review(
+        state["diff_hunk"], state.get("old_file", ""), state["lang"], session_id=state.get("run_id")
+    )
     return {"style_review": review}
 
 
 def _security_node(state: SupervisorState) -> dict:
-    review = run_security_review(state["diff_hunk"], state.get("old_file", ""), state["lang"])
+    review = run_security_review(
+        state["diff_hunk"], state.get("old_file", ""), state["lang"], session_id=state.get("run_id")
+    )
     return {"security_review": review}
 
 
 def _test_coverage_node(state: SupervisorState) -> dict:
-    review = run_test_coverage_review(state["diff_hunk"], state.get("old_file", ""), state["lang"])
+    review = run_test_coverage_review(
+        state["diff_hunk"], state.get("old_file", ""), state["lang"], session_id=state.get("run_id")
+    )
     return {"test_review": review}
 
 
@@ -82,7 +90,7 @@ def _merge_node(state: SupervisorState) -> dict:
     )
 
     llm = get_llm_with_fallback(temperature=0.3)
-    response = llm.invoke(prompt)
+    response = llm.invoke(prompt, config=invoke_config(state.get("run_id")))
     return {"final_review": extract_text(response)}
 
 
@@ -121,12 +129,14 @@ def build_supervisor_graph():
     return graph.compile()
 
 
-def run_full_review(diff_hunk: str, old_file: str = "", lang: str = "py") -> dict:
+def run_full_review(diff_hunk: str, old_file: str = "", lang: str = "py", run_id: str = None) -> dict:
     """
     Run the full supervisor pipeline on one diff.
 
     Returns the final state dict so callers (e.g. FastAPI in Phase 5) can
     show both the merged review and each specialist's individual output.
+    `run_id`, if given, groups this run's agent traces under one Langfuse
+    session (Phase 8) - purely observability, no effect on behavior.
     """
     app = build_supervisor_graph()
     initial_state: SupervisorState = {
@@ -137,5 +147,6 @@ def run_full_review(diff_hunk: str, old_file: str = "", lang: str = "py") -> dic
         "security_review": None,
         "test_review": None,
         "final_review": None,
+        "run_id": run_id,
     }
-    return app.invoke(initial_state)
+    return app.invoke(initial_state, config=invoke_config(run_id))

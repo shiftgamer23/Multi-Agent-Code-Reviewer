@@ -20,6 +20,7 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
+from app.infra.tracing import invoke_config
 from app.llm import bind_tools_with_fallback
 
 
@@ -83,14 +84,14 @@ def build_single_tool_agent(
 
     compiled = graph.compile()
 
-    def run(user_prompt: str) -> str:
+    def run(user_prompt: str, session_id: str = None) -> str:
         initial_state = {
             "messages": [
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=user_prompt),
             ]
         }
-        final_state = compiled.invoke(initial_state)
+        final_state = compiled.invoke(initial_state, config=invoke_config(session_id))
         return extract_text(final_state["messages"][-1])
 
     return run

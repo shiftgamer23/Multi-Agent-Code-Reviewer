@@ -28,6 +28,7 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
+from app.infra.tracing import invoke_config
 from app.llm import bind_tools_with_fallback
 from app.tools.linter import check_style
 
@@ -110,7 +111,7 @@ def build_style_agent():
     return graph.compile()
 
 
-def run_style_review(diff_hunk: str, old_file: str = "", lang: str = "py") -> str:
+def run_style_review(diff_hunk: str, old_file: str = "", lang: str = "py", session_id: str = None) -> str:
     """
     Run the Style Agent on one diff and return its final review comment.
 
@@ -138,7 +139,7 @@ Diff:
         ]
     }
 
-    final_state = app.invoke(initial_state)
+    final_state = app.invoke(initial_state, config=invoke_config(session_id))
     return extract_text(final_state["messages"][-1])
 
 

@@ -1,51 +1,53 @@
 """
 Run store: tracks each review run's input request and evolving result.
 
-Deliberately a plain in-process dict for Phase 5 - swapped for Redis in
-Phase 7, which is when persistence across restarts and cross-process
-access actually starts to matter. Keeping get/update as the only interface
-here means Phase 7 only needs to change this file, not the API layer.
+Moved from Phase 5's in-memory dict to Redis in Phase 7 - run state now
+survives a server restart, and decouples the API process from whatever
+runs the actual graph (relevant once BackgroundTasks and, later, Docker
+Compose services are in the picture).
 """
 import uuid
-from dataclasses import dataclass
 from typing import Optional
 
+from app.infra.redis_client import get_redis
 from app.models.review import ReviewRequest, ReviewResult
 
-
-@dataclass
-class _RunRecord:
-    request: ReviewRequest
-    result: ReviewResult
+RUN_TTL_SECONDS = 60 * 60 * 24 * 7  # 7 days - ephemeral run tracking, not the long-lived diff cache
 
 
-_RUNS: dict[str, _RunRecord] = {}
+def _request_key(run_id: str) -> str:
+    return f"run:{run_id}:request"
+
+
+def _result_key(run_id: str) -> str:
+    return f"run:{run_id}:result"
 
 
 def create_run(request: ReviewRequest) -> str:
     """Register a new pending run and return its ID. Does not execute anything."""
     run_id = str(uuid.uuid4())
-    _RUNS[run_id] = _RunRecord(
-        request=request,
-        result=ReviewResult(run_id=run_id, status="pending"),
-    )
+    result = ReviewResult(run_id=run_id, status="pending")
+    r = get_redis()
+    r.set(_request_key(run_id), request.model_dump_json(), ex=RUN_TTL_SECONDS)
+    r.set(_result_key(run_id), result.model_dump_json(), ex=RUN_TTL_SECONDS)
     return run_id
 
 
 def get_request(run_id: str) -> Optional[ReviewRequest]:
-    record = _RUNS.get(run_id)
-    return record.request if record else None
+    raw = get_redis().get(_request_key(run_id))
+    return ReviewRequest.model_validate_json(raw) if raw is not None else None
 
 
 def get_result(run_id: str) -> Optional[ReviewResult]:
-    record = _RUNS.get(run_id)
-    return record.result if record else None
+    raw = get_redis().get(_result_key(run_id))
+    return ReviewResult.model_validate_json(raw) if raw is not None else None
 
 
 def update_result(run_id: str, **fields) -> Optional[ReviewResult]:
     """Merge `fields` into the stored result (e.g. status='running', style_review='...')."""
-    record = _RUNS.get(run_id)
-    if record is None:
+    current = get_result(run_id)
+    if current is None:
         return None
-    record.result = record.result.model_copy(update=fields)
-    return record.result
+    updated = current.model_copy(update=fields)
+    get_redis().set(_result_key(run_id), updated.model_dump_json(), ex=RUN_TTL_SECONDS)
+    return updated
