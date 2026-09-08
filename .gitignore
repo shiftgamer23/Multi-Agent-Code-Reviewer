@@ -97,14 +97,6 @@ appendonly.aof
 .dockerignore
 docker-compose.override.yml
 
-# Weights, models, checkpoints (if added later)
-*.pt
-*.pth
-*.ckpt
-*.weights
-models/
-checkpoints/
-
 # Langfuse & Observability
 .langfuse_cache/
 traces/
