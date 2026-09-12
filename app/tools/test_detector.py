@@ -42,7 +42,35 @@ TEST_PATTERNS = {
         r'^.*\.test\.ts$',
         r'^.*\.spec\.ts$',
         r'^test/',
-    ]
+    ],
+    # Added in Phase 6 after the eval revealed these languages made up the
+    # majority of the locked eval slice but had no test-pattern coverage.
+    'go': [
+        r'_test\.go$',         # Go convention: foo_test.go
+    ],
+    'rb': [
+        r'_spec\.rb$',         # RSpec convention
+        r'^spec/',
+        r'^test/',
+        r'^test_.*\.rb$',      # Test::Unit/Minitest convention
+    ],
+    '.cs': [
+        r'.*Tests?\.cs$',      # *Test.cs / *Tests.cs
+        r'^Tests/',
+    ],
+    'c': [
+        r'test_.*\.c$',
+        r'.*_test\.c$',
+    ],
+    'cpp': [
+        r'test_.*\.cpp$',
+        r'.*_test\.cpp$',
+        r'.*Test\.cpp$',
+    ],
+    'php': [
+        r'.*Test\.php$',       # PHPUnit convention
+        r'^tests/',
+    ],
 }
 
 # Test framework imports/keywords
@@ -50,6 +78,10 @@ TEST_FRAMEWORKS = {
     'py': ['import pytest', 'import unittest', 'from unittest', 'TestCase', '@pytest.'],
     'js': ['jest', 'mocha', 'describe(', 'it(', 'test(', 'expect('],
     'java': ['import junit', '@Test', 'TestCase'],
+    'go': ['testing.T', 'func Test'],
+    'rb': ['RSpec', 'require "test_helper"', 'require \'test_helper\''],
+    '.cs': ['[Test]', '[Fact]', 'using Xunit', 'using NUnit'],
+    'php': ['PHPUnit', 'extends TestCase'],
 }
 
 

@@ -6,10 +6,15 @@ Responsible ONLY for security anti-patterns (hardcoded secrets, SQL
 injection, dangerous functions, weak crypto). Must NOT comment on style
 or test coverage - those belong to the other specialist agents.
 """
+import os
+
 from langchain_core.tools import tool
 
 from app.agents.react_agent_factory import build_single_tool_agent
-from app.tools.security_checker import scan_security
+from app.mcp_clients import call_mcp_tool
+
+SECURITY_MCP_SERVER = "mcp_servers/security_server.py"
+SECURITY_MCP_URL = os.getenv("SECURITY_MCP_URL")
 
 SECURITY_AGENT_SYSTEM_PROMPT = """You are a Security Reviewer, one specialist on a code review team.
 
@@ -40,20 +45,20 @@ def check_code_security(diff_hunk: str, lang: str = "py") -> str:
     injection, dangerous functions (eval/exec/pickle), weak cryptography,
     insecure deserialization, insecure transport. Call this before giving
     any security feedback on a diff."""
-    result = scan_security(diff_hunk, lang=lang)
-    if result.get("unsupported_language"):
-        return (
-            f"SECURITY SCAN NOT AVAILABLE for language '{lang}'. This is not "
-            "the same as 'no issues found' - the scan was never performed. "
-            "Do not claim the code is secure; state plainly that security "
-            "scanning isn't supported for this language."
+    # MCP Phase 4: was a direct in-process call to scan_security() (app/
+    # tools/security_checker.py). Now goes over MCP to security_server.py,
+    # which wraps that same untouched function - including the
+    # unsupported-language handling, so no reduction logic needs to live
+    # here anymore.
+    if SECURITY_MCP_URL:
+        return call_mcp_tool(
+            tool_name="check_code_security", server_url=SECURITY_MCP_URL,
+            diff_hunk=diff_hunk, lang=lang,
         )
-    output = result["summary"]
-    if result.get("recommendations"):
-        output += "\n\nRecommendations:\n" + "\n".join(
-            f"- {r}" for r in result["recommendations"]
-        )
-    return output
+    return call_mcp_tool(
+        tool_name="check_code_security", server_script=SECURITY_MCP_SERVER,
+        diff_hunk=diff_hunk, lang=lang,
+    )
 
 
 def run_security_review(diff_hunk: str, old_file: str = "", lang: str = "py", session_id: str = None) -> str:

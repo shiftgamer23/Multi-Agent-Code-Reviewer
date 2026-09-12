@@ -8,10 +8,40 @@ services:
       # not localhost - overrides the default in app/infra/redis_client.py.
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      # MCP Phase 6: each tool server is its own container now, reached
+      # over the network (streamable-http) instead of spawned locally over
+      # stdio - overrides the *_MCP_SERVER (stdio) fallback in each agent.
+      - LINTER_MCP_URL=http://linter-server:8001/mcp
+      - TEST_COVERAGE_MCP_URL=http://test-coverage-server:8002/mcp
+      - SECURITY_MCP_URL=http://security-server:8003/mcp
     env_file:
       - .env
     depends_on:
       - redis
+      - linter-server
+      - test-coverage-server
+      - security-server
+
+  linter-server:
+    build: .
+    command: ["python", "mcp_servers/linter_server.py"]
+    environment:
+      - MCP_TRANSPORT=http
+      - MCP_PORT=8001
+
+  test-coverage-server:
+    build: .
+    command: ["python", "mcp_servers/test_coverage_server.py"]
+    environment:
+      - MCP_TRANSPORT=http
+      - MCP_PORT=8002
+
+  security-server:
+    build: .
+    command: ["python", "mcp_servers/security_server.py"]
+    environment:
+      - MCP_TRANSPORT=http
+      - MCP_PORT=8003
 
   redis:
     image: redis:7-alpine

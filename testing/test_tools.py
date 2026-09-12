@@ -4,9 +4,13 @@ Test all tools independently (Phase 2 verification).
 This tests each tool WITHOUT LangGraph or LLM integration.
 Just pure Python functions to verify they work.
 
-Run: python test_tools.py
+Run: python testing/test_tools.py
 """
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from app.tools import check_style, check_test_coverage, scan_security
 
 

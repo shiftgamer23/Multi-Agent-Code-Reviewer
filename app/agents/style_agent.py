@@ -20,6 +20,7 @@ Graph shape (the ReAct pattern):
 - The agent -> tools edge loops back to "agent" so the LLM sees the tool
   result and can either call another tool or produce its final review text.
 """
+import os
 from typing import Annotated, TypedDict
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -30,7 +31,12 @@ from langgraph.prebuilt import ToolNode
 
 from app.infra.tracing import invoke_config
 from app.llm import bind_tools_with_fallback
-from app.tools.linter import check_style
+from app.mcp_clients import call_mcp_tool
+
+LINTER_MCP_SERVER = "mcp_servers/linter_server.py"
+# Unset locally (stdio, spawn-per-call) - set in docker-compose.yml, Phase 6,
+# where linter-server is its own long-lived container reached over the network.
+LINTER_MCP_URL = os.getenv("LINTER_MCP_URL")
 
 STYLE_AGENT_SYSTEM_PROMPT = """You are a Style Reviewer, one specialist on a code review team.
 
@@ -58,15 +64,19 @@ def check_code_style(diff_hunk: str, lang: str = "py") -> str:
     """Check a code diff for style violations: line length, trailing
     whitespace, blank-line conventions, missing docstrings, unused imports.
     Call this before giving any style feedback on a diff."""
-    result = check_style(diff_hunk, lang=lang)
-    if result.get("unsupported_language"):
-        return (
-            f"STYLE CHECK NOT AVAILABLE for language '{lang}'. This is not "
-            "the same as 'no issues found' - the check was never performed. "
-            "Do not claim the code is stylistically clean; state plainly "
-            "that style checking isn't supported for this language."
+    # MCP Phase 3: was a direct in-process call to check_style() (app/tools/
+    # linter.py). Now goes over MCP to linter_server.py (MCP Phase 2), which
+    # wraps that same untouched function - including its unsupported-language
+    # handling, so no reduction logic needs to live here anymore.
+    if LINTER_MCP_URL:
+        return call_mcp_tool(
+            tool_name="check_code_style", server_url=LINTER_MCP_URL,
+            diff_hunk=diff_hunk, lang=lang,
         )
-    return result["summary"]
+    return call_mcp_tool(
+        tool_name="check_code_style", server_script=LINTER_MCP_SERVER,
+        diff_hunk=diff_hunk, lang=lang,
+    )
 
 
 class StyleAgentState(TypedDict):
